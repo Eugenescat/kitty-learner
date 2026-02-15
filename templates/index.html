@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passive Learner - 学习Feed</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #fef9f3 0%, #fdf6ed 50%, #fef5e7 100%);
+        }
+        
+        .title-font {
+            font-family: 'Noto Serif SC', serif;
+        }
+        
+        /* Masonry layout */
+        .masonry {
+            column-count: 2;
+            column-gap: 12px;
+        }
+        
+        @media (max-width: 640px) {
+            .masonry {
+                column-count: 2;
+                column-gap: 8px;
+            }
+        }
+        
+        .masonry-item {
+            break-inside: avoid;
+            margin-bottom: 12px;
+        }
+        
+        /* Card styles */
+        .card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        /* Topic cover colors */
+        .cover-0 { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+        .cover-1 { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+        .cover-2 { background: linear-gradient(135deg, #d299c2 0%, #fef9d7 100%); }
+        .cover-3 { background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%); }
+        .cover-4 { background: linear-gradient(135deg, #ffeaa7 0%, #dfe6e9 100%); }
+        .cover-5 { background: linear-gradient(135deg, #f8b500 0%, #fceabb 100%); }
+        .cover-6 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .cover-7 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+        
+        /* Controversy badges */
+        .badge-high { background: #ff6b6b; color: white; }
+        .badge-medium { background: #feca57; color: #333; }
+        .badge-low { background: #c8d6e5; color: #666; }
+        
+        /* Avatar ring */
+        .avatar-ring {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 2px;
+            border-radius: 50%;
+        }
+        
+        /* Like button */
+        .like-btn {
+            color: #ff6b6b;
+        }
+        
+        /* Fade in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.4s ease forwards;
+        }
+        
+        /* Upload modal */
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ff6b6b;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Progress bar */
+        .progress-bar {
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #ff6b6b);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        /* Hide scrollbar but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-20">
+    <!-- Header -->
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-orange-100">
+        <div class="max-w-2xl mx-auto px-4 py-3">
+            <h1 id="feedTitle" class="text-lg font-semibold text-center text-gray-800 title-font">📚 Passive Learner</h1>
+            <p id="feedSummary" class="text-xs text-gray-500 text-center mt-1 line-clamp-1">上传 PDF，让 AI 帮你把论文变成小红书</p>
+        </div>
+    </header>
+
+    <!-- Feed Container -->
+    <main class="max-w-2xl mx-auto px-3 py-4">
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden flex flex-col items-center justify-center py-20">
+            <div class="spinner mb-4"></div>
+            <p id="loadingText" class="text-gray-500 text-sm">正在处理...</p>
+            <div class="w-48 h-1 bg-gray-200 rounded-full mt-4 overflow-hidden">
+                <div class="progress-bar h-full w-full"></div>
+            </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="flex flex-col items-center justify-center py-20">
+            <div class="text-6xl mb-4">📄</div>
+            <p class="text-gray-500 text-sm mb-4">还没有内容，上传一个 PDF 开始吧</p>
+            <button onclick="openUploadModal()" class="px-6 py-2 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-shadow">
+                上传 PDF
+            </button>
+        </div>
+        
+        <!-- Feed Content -->
+        <div id="feedContent" class="masonry hidden">
+            <!-- Posts will be dynamically inserted here -->
+        </div>
+        
+        <!-- End of Feed -->
+        <div id="feedEnd" class="hidden text-center py-8 text-gray-400 text-sm">
+            ✨ 已经刷完啦！
+        </div>
+    </main>
+    
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeUploadModal()"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 transform transition-transform duration-300" id="uploadSheet">
+            <div class="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6"></div>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 title-font">📤 上传 PDF</h2>
+            
+            <form id="uploadForm" class="space-y-4">
+                <!-- File Drop Zone -->
+                <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-orange-400 transition-colors cursor-pointer"
+                     onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" accept=".pdf" class="hidden" onchange="handleFileSelect(event)">
+                    <div id="dropZoneContent">
+                        <div class="text-4xl mb-2">📎</div>
+                        <p class="text-gray-500 text-sm">点击选择或拖拽 PDF 文件到这里</p>
+                    </div>
+                    <div id="fileSelected" class="hidden">
+                        <div class="text-4xl mb-2">✅</div>
+                        <p id="selectedFileName" class="text-gray-700 text-sm font-medium"></p>
+                    </div>
+                </div>
+                
+                <!-- Title Input -->
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">标题（可选）</label>
+                    <input type="text" id="titleInput" placeholder="默认使用文件名" 
+                           class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                </div>
+                
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn" disabled
+                        class="w-full py-3 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    开始生成
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-2 z-30">
+        <div class="max-w-2xl mx-auto flex justify-around items-center">
+            <button onclick="showFeed()" class="nav-btn flex flex-col items-center text-orange-500" data-tab="home">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+                <span class="text-[10px] mt-0.5">首页</span>
+            </button>
+            <button onclick="showSearch()" class="nav-btn flex flex-col items-center text-gray-400" data-tab="search">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <span class="text-[10px] mt-0.5">搜索</span>
+            </button>
+            <button onclick="openUploadModal()" class="flex flex-col items-center">
+                <div class="w-10 h-6 bg-gradient-to-r from-orange-400 to-red-400 rounded-lg flex items-center justify-center shadow-lg">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </div>
+            </button>
+            <button onclick="openUploadModal()" class="nav-btn flex flex-col items-center text-gray-400" data-tab="upload">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                <span class="text-[10px] mt-0.5">上传</span>
+            </button>
+            <button onclick="showProfile()" class="nav-btn flex flex-col items-center text-gray-400" data-tab="profile">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+                <span class="text-[10px] mt-0.5">我</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // State
+        let currentFeed = null;
+        let selectedFile = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load demo feed on start
+            loadDemoFeed();
+            
+            // Setup drag and drop
+            setupDragAndDrop();
+            
+            // Setup form submission
+            document.getElementById('uploadForm').addEventListener('submit', handleUpload);
+        });
+        
+        // Load demo feed
+        async function loadDemoFeed() {
+            try {
+                const response = await fetch('/api/demo');
+                const data = await response.json();
+                currentFeed = data;
+                renderFeed(data);
+            } catch (error) {
+                console.error('Failed to load demo feed:', error);
+            }
+        }
+        
+        // Render feed
+        function renderFeed(feedData) {
+            document.getElementById('feedTitle').textContent = `📚 ${feedData.title}`;
+            document.getElementById('feedSummary').textContent = feedData.summary;
+            
+            const container = document.getElementById('feedContent');
+            container.innerHTML = '';
+            
+            feedData.posts.forEach((post, index) => {
+                const card = createPostCard(post, index);
+                container.appendChild(card);
+            });
+            
+            // Show feed, hide others
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('feedContent').classList.remove('hidden');
+            document.getElementById('feedEnd').classList.remove('hidden');
+            document.getElementById('feedEnd').innerHTML = `✨ 已经刷完啦！共 ${feedData.posts.length} 条笔记`;
+        }
+        
+        // Create post card HTML
+        function createPostCard(post, index) {
+            const coverClass = `cover-${index % 8}`;
+            const controversyBadge = {
+                'high': { class: 'badge-high', text: '🔥 热议' },
+                'medium': { class: 'badge-medium', text: '💬 讨论' },
+                'low': { class: 'badge-low', text: '📖 入门' }
+            }[post.topic?.controversy_level] || { class: 'badge-low', text: '📖 入门' };
+            
+            const div = document.createElement('div');
+            div.className = 'masonry-item fade-in';
+            div.style.animationDelay = `${index * 0.05}s`;
+            
+            let repliesHtml = '';
+            if (post.replies && post.replies.length > 0) {
+                const repliesContent = post.replies.slice(0, 2).map(r => `
+                    <div class="flex items-start gap-1.5 mt-1.5 first:mt-0">
+                        <span class="text-[11px]">${r.agent.avatar_emoji}</span>
+                        <p class="text-[11px] text-gray-600 line-clamp-2">
+                            <span class="font-medium text-gray-700">${r.agent.nickname}:</span>
+                            ${r.content}
+                        </p>
+                    </div>
+                `).join('');
+                
+                const moreReplies = post.replies.length > 2 
+                    ? `<p class="text-[10px] text-gray-400 mt-1">还有 ${post.replies.length - 2} 条评论...</p>` 
+                    : '';
+                
+                repliesHtml = `
+                    <div class="border-t border-gray-100 px-3 py-2 bg-gray-50/50">
+                        ${repliesContent}
+                        ${moreReplies}
+                    </div>
+                `;
+            }
+            
+            div.innerHTML = `
+                <article class="card">
+                    ${post.topic ? `
+                    <div class="${coverClass} p-4 min-h-[80px] flex flex-col justify-end">
+                        <div class="flex gap-1.5 mb-2">
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-white/30 backdrop-blur">难度 ${post.topic.difficulty}/10</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full ${controversyBadge.class}">${controversyBadge.text}</span>
+                        </div>
+                        <h3 class="text-sm font-semibold leading-snug title-font">${post.topic.title}</h3>
+                    </div>
+                    ` : ''}
+                    <div class="p-3">
+                        <p class="text-[13px] text-gray-700 leading-relaxed line-clamp-6">${post.content}</p>
+                    </div>
+                    <div class="px-3 pb-3 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="avatar-ring">
+                                <div class="w-6 h-6 rounded-full bg-white flex items-center justify-center text-sm">${post.agent.avatar_emoji}</div>
+                            </div>
+                            <span class="text-xs text-gray-600">${post.agent.nickname}</span>
+                        </div>
+                        <div class="flex items-center gap-1 like-btn">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                            <span class="text-xs">${post.likes}</span>
+                        </div>
+                    </div>
+                    ${repliesHtml}
+                </article>
+            `;
+            
+            return div;
+        }
+        
+        // Upload Modal
+        function openUploadModal() {
+            document.getElementById('uploadModal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('uploadSheet').style.transform = 'translateY(0)';
+            }, 10);
+        }
+        
+        function closeUploadModal() {
+            document.getElementById('uploadSheet').style.transform = 'translateY(100%)';
+            setTimeout(() => {
+                document.getElementById('uploadModal').classList.add('hidden');
+                resetUploadForm();
+            }, 300);
+        }
+        
+        function resetUploadForm() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('titleInput').value = '';
+            document.getElementById('dropZoneContent').classList.remove('hidden');
+            document.getElementById('fileSelected').classList.add('hidden');
+            document.getElementById('submitBtn').disabled = true;
+        }
+        
+        // Drag and Drop
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.add('border-orange-400', 'bg-orange-50');
+                });
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.remove('border-orange-400', 'bg-orange-50');
+                });
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type === 'application/pdf') {
+                    handleFile(files[0]);
+                }
+            });
+        }
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) handleFile(file);
+        }
+        
+        function handleFile(file) {
+            selectedFile = file;
+            document.getElementById('dropZoneContent').classList.add('hidden');
+            document.getElementById('fileSelected').classList.remove('hidden');
+            document.getElementById('selectedFileName').textContent = file.name;
+            document.getElementById('submitBtn').disabled = false;
+        }
+        
+        // Upload and Process
+        async function handleUpload(event) {
+            event.preventDefault();
+            
+            if (!selectedFile) return;
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '上传中...';
+            
+            try {
+                // Step 1: Upload file
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                formData.append('title', document.getElementById('titleInput').value || selectedFile.name.replace('.pdf', ''));
+                
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const uploadResult = await uploadResponse.json();
+                
+                if (!uploadResult.success) {
+                    throw new Error(uploadResult.error);
+                }
+                
+                // Close modal and show loading
+                closeUploadModal();
+                showLoading('正在分析论文，提取知识点...');
+                
+                // Step 2: Process PDF
+                updateLoadingText('🔍 正在分析论文...');
+                const processResponse = await fetch(`/api/process/${uploadResult.file_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: uploadResult.title })
+                });
+                
+                const processResult = await processResponse.json();
+                
+                if (!processResult.success) {
+                    throw new Error(processResult.error);
+                }
+                
+                updateLoadingText('🤖 正在生成帖子...');
+                
+                // Step 3: Load feed
+                const feedResponse = await fetch(`/api/feed/${uploadResult.file_id}`);
+                const feedData = await feedResponse.json();
+                
+                // Render new feed
+                renderFeed(feedData);
+                
+            } catch (error) {
+                console.error('Upload failed:', error);
+                alert('处理失败: ' + error.message);
+                hideLoading();
+            }
+        }
+        
+        function showLoading(text) {
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('feedContent').classList.add('hidden');
+            document.getElementById('feedEnd').classList.add('hidden');
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('loadingText').textContent = text;
+        }
+        
+        function updateLoadingText(text) {
+            document.getElementById('loadingText').textContent = text;
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingState').classList.add('hidden');
+            if (currentFeed) {
+                document.getElementById('feedContent').classList.remove('hidden');
+                document.getElementById('feedEnd').classList.remove('hidden');
+            } else {
+                document.getElementById('emptyState').classList.remove('hidden');
+            }
+        }
+        
+        // Navigation (placeholder functions)
+        function showFeed() {
+            setActiveTab('home');
+            if (currentFeed) {
+                renderFeed(currentFeed);
+            }
+        }
+        
+        function showSearch() {
+            setActiveTab('search');
+            // TODO: Implement search
+        }
+        
+        function showProfile() {
+            setActiveTab('profile');
+            // TODO: Implement profile
+        }
+        
+        function setActiveTab(tab) {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.dataset.tab === tab) {
+                    btn.classList.remove('text-gray-400');
+                    btn.classList.add('text-orange-500');
+                } else {
+                    btn.classList.remove('text-orange-500');
+                    btn.classList.add('text-gray-400');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

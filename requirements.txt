@@ -1,0 +1,7 @@
+pymupdf
+anthropic
+jinja2
+python-dotenv
+flask
+werkzeug
+gunicorn

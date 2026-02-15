@@ -1,0 +1,40 @@
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Uploads (user uploaded PDFs)
+uploads/
+
+# Local data (will be regenerated)
+data/
+
+# Output (CLI generated files)
+output/
+
+# Logs
+*.log
+
+# Test PDFs
+input/
+
+# Raw data
+raw/
+
+# Random files
+*.webp
