@@ -16,15 +16,15 @@ from pdf_parser import extract_text_from_pdf
 from topic_extractor import extract_topics, PaperTopics, Topic
 from generator import generate_all_posts, Post
 from agents import get_all_agents
-import storage  # Local JSON storage
+import database  # PostgreSQL storage with JSON fallback
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = Path(__file__).parent / 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
 app.config['UPLOAD_FOLDER'].mkdir(exist_ok=True)
 
-# Initialize storage
-storage.init_storage()
+# Initialize database
+database.init_db()
 
 
 def posts_to_dict(posts: list[Post]) -> list[dict]:
@@ -123,7 +123,7 @@ def process_pdf(file_id):
         print("🔍 Extracting topics...")
         paper_topics = extract_topics(paper_text)
         
-        # Save topics to local storage
+        # Prepare topics data
         topics_data = {
             "paper_summary": paper_topics.paper_summary,
             "topics": [
@@ -140,7 +140,6 @@ def process_pdf(file_id):
             ],
             "recommended_order": paper_topics.recommended_order,
         }
-        storage.save_topics(file_id, title, topics_data)
         
         # Step 3: Generate posts
         print("🤖 Generating posts...")
@@ -153,16 +152,14 @@ def process_pdf(file_id):
         # Convert posts to dict
         posts_dict = posts_to_dict(posts)
         
-        # Save posts to local storage
-        storage.save_posts(file_id, title, posts_dict)
-        
-        # Save complete feed
-        feed_data = {
-            "title": title,
-            "summary": paper_topics.paper_summary,
-            "posts": posts_dict,
-        }
-        storage.save_feed(file_id, feed_data)
+        # Save to database (with JSON fallback for local dev)
+        database.save_feed_with_fallback(
+            file_id=file_id,
+            title=title,
+            summary=paper_topics.paper_summary,
+            topics_data=topics_data,
+            posts_data=posts_dict,
+        )
         
         return jsonify({
             "success": True,
@@ -180,8 +177,8 @@ def process_pdf(file_id):
 
 @app.route('/api/feed/<file_id>')
 def get_feed(file_id):
-    """Get generated feed data from local storage."""
-    feed_data = storage.load_feed(file_id)
+    """Get generated feed data from database."""
+    feed_data = database.load_feed_with_fallback(file_id)
     
     if not feed_data:
         return jsonify({"error": "Feed not found. Please process the PDF first."}), 404
@@ -191,8 +188,8 @@ def get_feed(file_id):
 
 @app.route('/api/feeds')
 def list_feeds():
-    """List all saved feeds from local storage."""
-    feeds = storage.list_all_feeds()
+    """List all saved feeds from database."""
+    feeds = database.list_feeds_with_fallback()
     return jsonify({"feeds": feeds})
 
 
