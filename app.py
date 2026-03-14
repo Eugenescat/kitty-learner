@@ -5,18 +5,14 @@ Passive Learner - Web Application
 Flask-based web app for transforming PDFs into RedNote-style feeds.
 """
 
-import os
-import json
 import uuid
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 
-from pdf_parser import extract_text_from_pdf
-from topic_extractor import extract_topics, PaperTopics, Topic
-from generator import generate_all_posts, Post
-from agents import get_all_agents
 import database  # PostgreSQL storage with JSON fallback
+from pipeline.graph import run_pipeline
+from pipeline.state import build_initial_state
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = Path(__file__).parent / 'uploads'
@@ -25,43 +21,6 @@ app.config['UPLOAD_FOLDER'].mkdir(exist_ok=True)
 
 # Initialize database
 database.init_db()
-
-
-def posts_to_dict(posts: list[Post]) -> list[dict]:
-    """Convert Post objects to JSON-serializable dicts."""
-    return [
-        {
-            "id": p.id,
-            "agent": {
-                "nickname": p.agent.nickname,
-                "name": p.agent.name,
-                "avatar_emoji": p.agent.avatar_emoji,
-            },
-            "topic": {
-                "topic_id": p.topic.topic_id,
-                "title": p.topic.title,
-                "core_idea": p.topic.core_idea,
-                "why_it_matters": p.topic.why_it_matters,
-                "controversy_level": p.topic.controversy_level,
-                "source_section": p.topic.source_section,
-                "difficulty": p.topic.difficulty,
-            } if p.topic else None,
-            "content": p.content,
-            "likes": p.likes,
-            "replies": [
-                {
-                    "agent": {
-                        "nickname": r.agent.nickname,
-                        "avatar_emoji": r.agent.avatar_emoji,
-                    },
-                    "content": r.content,
-                    "likes": r.likes,
-                }
-                for r in p.replies
-            ],
-        }
-        for p in posts
-    ]
 
 
 @app.route('/')
@@ -112,62 +71,27 @@ def process_pdf(file_id):
         return jsonify({"error": "File not found"}), 404
     
     filepath = matching_files[0]
-    title = request.json.get('title', filepath.stem.split('_', 1)[-1])
+    payload = request.get_json(silent=True) or {}
+    title = payload.get('title', filepath.stem.split('_', 1)[-1])
     
     try:
-        # Step 1: Extract text
-        print(f"📄 Extracting text from {filepath.name}...")
-        paper_text = extract_text_from_pdf(str(filepath))
-        
-        # Step 2: Extract topics
-        print("🔍 Extracting topics...")
-        paper_topics = extract_topics(paper_text)
-        
-        # Prepare topics data
-        topics_data = {
-            "paper_summary": paper_topics.paper_summary,
-            "topics": [
-                {
-                    "topic_id": t.topic_id,
-                    "title": t.title,
-                    "core_idea": t.core_idea,
-                    "why_it_matters": t.why_it_matters,
-                    "controversy_level": t.controversy_level,
-                    "source_section": t.source_section,
-                    "difficulty": t.difficulty,
-                }
-                for t in paper_topics.topics
-            ],
-            "recommended_order": paper_topics.recommended_order,
-        }
-        
-        # Step 3: Generate posts
-        print("🤖 Generating posts...")
-        posts = generate_all_posts(
-            paper_topics,
-            agents_per_topic=2,  # Fewer for faster generation
-            replies_per_post=1,
-        )
-        
-        # Convert posts to dict
-        posts_dict = posts_to_dict(posts)
-        
-        # Save to database (with JSON fallback for local dev)
-        database.save_feed_with_fallback(
+        state = build_initial_state(
             file_id=file_id,
             title=title,
-            summary=paper_topics.paper_summary,
-            topics_data=topics_data,
-            posts_data=posts_dict,
+            pdf_path=str(filepath),
         )
+        result = run_pipeline(state)
+
+        if result.get("errors"):
+            raise RuntimeError(result["errors"][-1])
         
         return jsonify({
             "success": True,
             "file_id": file_id,
-            "title": title,
-            "summary": paper_topics.paper_summary,
-            "topic_count": len(paper_topics.topics),
-            "post_count": len(posts),
+            "title": result.get("title", title),
+            "summary": result.get("paper_summary", ""),
+            "topic_count": result.get("topic_count", 0),
+            "post_count": result.get("post_count", 0),
         })
         
     except Exception as e:

@@ -87,10 +87,21 @@
             animation: fadeIn 0.4s ease forwards;
         }
         
-        /* Upload modal */
-        .modal-backdrop {
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
+        /* Upload panel */
+        .upload-panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Post detail modal */
+        .detail-backdrop {
+            background: rgba(17, 24, 39, 0.45);
+            backdrop-filter: blur(2px);
+        }
+
+        .detail-content {
+            max-height: min(86vh, 900px);
         }
         
         /* Loading spinner */
@@ -139,72 +150,85 @@
         </div>
     </header>
 
-    <!-- Feed Container -->
+    <!-- Main Content -->
     <main class="max-w-2xl mx-auto px-3 py-4">
-        <!-- Loading State -->
-        <div id="loadingState" class="hidden flex flex-col items-center justify-center py-20">
-            <div class="spinner mb-4"></div>
-            <p id="loadingText" class="text-gray-500 text-sm">正在处理...</p>
-            <div class="w-48 h-1 bg-gray-200 rounded-full mt-4 overflow-hidden">
-                <div class="progress-bar h-full w-full"></div>
+        <!-- Feed View -->
+        <section id="feedView">
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden flex flex-col items-center justify-center py-20">
+                <div class="spinner mb-4"></div>
+                <p id="loadingText" class="text-gray-500 text-sm">正在处理...</p>
+                <div class="w-48 h-1 bg-gray-200 rounded-full mt-4 overflow-hidden">
+                    <div class="progress-bar h-full w-full"></div>
+                </div>
             </div>
-        </div>
-        
-        <!-- Empty State -->
-        <div id="emptyState" class="flex flex-col items-center justify-center py-20">
-            <div class="text-6xl mb-4">📄</div>
-            <p class="text-gray-500 text-sm mb-4">还没有内容，上传一个 PDF 开始吧</p>
-            <button onclick="openUploadModal()" class="px-6 py-2 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-shadow">
-                上传 PDF
-            </button>
-        </div>
-        
-        <!-- Feed Content -->
-        <div id="feedContent" class="masonry hidden">
-            <!-- Posts will be dynamically inserted here -->
-        </div>
-        
-        <!-- End of Feed -->
-        <div id="feedEnd" class="hidden text-center py-8 text-gray-400 text-sm">
-            ✨ 已经刷完啦！
-        </div>
-    </main>
-    
-    <!-- Upload Modal -->
-    <div id="uploadModal" class="fixed inset-0 z-50 hidden">
-        <div class="modal-backdrop absolute inset-0" onclick="closeUploadModal()"></div>
-        <div class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl p-6 transform transition-transform duration-300" id="uploadSheet">
-            <div class="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6"></div>
-            <h2 class="text-lg font-semibold text-gray-800 mb-4 title-font">📤 上传 PDF</h2>
             
-            <form id="uploadForm" class="space-y-4">
-                <!-- File Drop Zone -->
-                <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-orange-400 transition-colors cursor-pointer"
-                     onclick="document.getElementById('fileInput').click()">
-                    <input type="file" id="fileInput" accept=".pdf" class="hidden" onchange="handleFileSelect(event)">
-                    <div id="dropZoneContent">
-                        <div class="text-4xl mb-2">📎</div>
-                        <p class="text-gray-500 text-sm">点击选择或拖拽 PDF 文件到这里</p>
-                    </div>
-                    <div id="fileSelected" class="hidden">
-                        <div class="text-4xl mb-2">✅</div>
-                        <p id="selectedFileName" class="text-gray-700 text-sm font-medium"></p>
-                    </div>
-                </div>
-                
-                <!-- Title Input -->
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">标题（可选）</label>
-                    <input type="text" id="titleInput" placeholder="默认使用文件名" 
-                           class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
-                </div>
-                
-                <!-- Submit Button -->
-                <button type="submit" id="submitBtn" disabled
-                        class="w-full py-3 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-                    开始生成
+            <!-- Empty State -->
+            <div id="emptyState" class="flex flex-col items-center justify-center py-20">
+                <div class="text-6xl mb-4">📄</div>
+                <p class="text-gray-500 text-sm mb-4">还没有内容，上传一个 PDF 开始吧</p>
+                <button onclick="showUpload()" class="px-6 py-2 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-shadow">
+                    上传 PDF
                 </button>
-            </form>
+            </div>
+            
+            <!-- Feed Content -->
+            <div id="feedContent" class="masonry hidden">
+                <!-- Posts will be dynamically inserted here -->
+            </div>
+            
+            <!-- End of Feed -->
+            <div id="feedEnd" class="hidden text-center py-8 text-gray-400 text-sm">
+                ✨ 已经刷完啦！
+            </div>
+        </section>
+
+        <!-- Upload View -->
+        <section id="uploadView" class="hidden">
+            <div class="upload-panel p-5 sm:p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 title-font">📤 上传 PDF</h2>
+
+                <form id="uploadForm" class="space-y-4">
+                    <!-- File Drop Zone -->
+                    <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-orange-400 transition-colors cursor-pointer"
+                         onclick="document.getElementById('fileInput').click()">
+                        <input type="file" id="fileInput" accept=".pdf" class="hidden" onchange="handleFileSelect(event)">
+                        <div id="dropZoneContent">
+                            <div class="text-4xl mb-2">📎</div>
+                            <p class="text-gray-500 text-sm">点击选择或拖拽 PDF 文件到这里</p>
+                        </div>
+                        <div id="fileSelected" class="hidden">
+                            <div class="text-4xl mb-2">✅</div>
+                            <p id="selectedFileName" class="text-gray-700 text-sm font-medium"></p>
+                        </div>
+                    </div>
+
+                    <!-- Title Input -->
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">标题（可选）</label>
+                        <input type="text" id="titleInput" placeholder="默认使用文件名" 
+                               class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400">
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" id="submitBtn" disabled
+                            class="w-full py-3 bg-gradient-to-r from-orange-400 to-red-400 text-white rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                        开始生成
+                    </button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- Post Detail Modal -->
+    <div id="postDetailModal" class="fixed inset-0 z-50 hidden">
+        <div class="detail-backdrop absolute inset-0" onclick="closePostDetail()"></div>
+        <div class="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[min(92vw,40rem)] bg-white rounded-2xl shadow-2xl overflow-hidden detail-content flex flex-col">
+            <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-gray-800">全文详情</h3>
+                <button onclick="closePostDetail()" class="text-gray-500 text-sm px-2 py-1 rounded hover:bg-gray-100">关闭</button>
+            </div>
+            <div id="postDetailBody" class="p-4 overflow-y-auto"></div>
         </div>
     </div>
     
@@ -223,14 +247,14 @@
                 </svg>
                 <span class="text-[10px] mt-0.5">搜索</span>
             </button>
-            <button onclick="openUploadModal()" class="flex flex-col items-center">
+            <button onclick="showUpload()" class="flex flex-col items-center">
                 <div class="w-10 h-6 bg-gradient-to-r from-orange-400 to-red-400 rounded-lg flex items-center justify-center shadow-lg">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
                 </div>
             </button>
-            <button onclick="openUploadModal()" class="nav-btn flex flex-col items-center text-gray-400" data-tab="upload">
+            <button onclick="showUpload()" class="nav-btn flex flex-col items-center text-gray-400" data-tab="upload">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                 </svg>
@@ -252,8 +276,8 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            // Load demo feed on start
-            loadDemoFeed();
+            // Load latest saved feed on start, fallback to demo
+            loadInitialFeed();
             
             // Setup drag and drop
             setupDragAndDrop();
@@ -262,12 +286,34 @@
             document.getElementById('uploadForm').addEventListener('submit', handleUpload);
         });
         
+        // Load latest saved feed first, fallback to demo feed
+        async function loadInitialFeed() {
+            try {
+                const feedsResponse = await fetch('/api/feeds');
+                const feedsResult = await feedsResponse.json();
+                const feeds = feedsResult.feeds || [];
+                
+                if (feeds.length > 0 && feeds[0].file_id) {
+                    const latestFileId = feeds[0].file_id;
+                    const feedResponse = await fetch(`/api/feed/${latestFileId}`);
+                    if (feedResponse.ok) {
+                        const latestFeed = await feedResponse.json();
+                        renderFeed(latestFeed);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load latest saved feed:', error);
+            }
+            
+            await loadDemoFeed();
+        }
+        
         // Load demo feed
         async function loadDemoFeed() {
             try {
                 const response = await fetch('/api/demo');
                 const data = await response.json();
-                currentFeed = data;
                 renderFeed(data);
             } catch (error) {
                 console.error('Failed to load demo feed:', error);
@@ -276,6 +322,9 @@
         
         // Render feed
         function renderFeed(feedData) {
+            currentFeed = feedData;
+            document.getElementById('uploadView').classList.add('hidden');
+            document.getElementById('feedView').classList.remove('hidden');
             document.getElementById('feedTitle').textContent = `📚 ${feedData.title}`;
             document.getElementById('feedSummary').textContent = feedData.summary;
             
@@ -345,6 +394,9 @@
                     ` : ''}
                     <div class="p-3">
                         <p class="text-[13px] text-gray-700 leading-relaxed line-clamp-6">${post.content}</p>
+                        <button onclick="openPostDetail(${index}); event.stopPropagation();" class="mt-2 text-xs text-orange-500 hover:text-orange-600 font-medium">
+                            展开全文
+                        </button>
                     </div>
                     <div class="px-3 pb-3 flex items-center justify-between">
                         <div class="flex items-center gap-2">
@@ -363,24 +415,64 @@
                     ${repliesHtml}
                 </article>
             `;
+
+            div.querySelector('article').addEventListener('click', () => openPostDetail(index));
             
             return div;
         }
-        
-        // Upload Modal
-        function openUploadModal() {
-            document.getElementById('uploadModal').classList.remove('hidden');
-            setTimeout(() => {
-                document.getElementById('uploadSheet').style.transform = 'translateY(0)';
-            }, 10);
+
+        function openPostDetail(index) {
+            if (!currentFeed || !currentFeed.posts || !currentFeed.posts[index]) return;
+            const post = currentFeed.posts[index];
+            const controversyBadge = {
+                'high': { class: 'badge-high', text: '🔥 热议' },
+                'medium': { class: 'badge-medium', text: '💬 讨论' },
+                'low': { class: 'badge-low', text: '📖 入门' }
+            }[post.topic?.controversy_level] || { class: 'badge-low', text: '📖 入门' };
+
+            const topicSection = post.topic ? `
+                <div class="mb-4 p-3 rounded-xl bg-orange-50">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-white/70">难度 ${post.topic.difficulty}/10</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full ${controversyBadge.class}">${controversyBadge.text}</span>
+                    </div>
+                    <h4 class="text-sm font-semibold text-gray-800">${post.topic.title}</h4>
+                </div>
+            ` : '';
+
+            const repliesSection = post.replies && post.replies.length > 0 ? `
+                <div class="mt-5 pt-4 border-t border-gray-100">
+                    <h5 class="text-sm font-semibold text-gray-700 mb-2">评论</h5>
+                    ${post.replies.map(r => `
+                        <div class="flex items-start gap-2 mb-2">
+                            <span>${r.agent.avatar_emoji}</span>
+                            <p class="text-sm text-gray-600"><span class="font-medium text-gray-700">${r.agent.nickname}:</span> ${r.content}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '';
+
+            document.getElementById('postDetailBody').innerHTML = `
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="avatar-ring">
+                        <div class="w-7 h-7 rounded-full bg-white flex items-center justify-center text-sm">${post.agent.avatar_emoji}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-800">${post.agent.nickname}</div>
+                        <div class="text-xs text-gray-500">❤️ ${post.likes}</div>
+                    </div>
+                </div>
+                ${topicSection}
+                <div class="text-[15px] leading-7 text-gray-800 whitespace-pre-wrap">${post.content}</div>
+                ${repliesSection}
+            `;
+            document.getElementById('postDetailModal').classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
         }
-        
-        function closeUploadModal() {
-            document.getElementById('uploadSheet').style.transform = 'translateY(100%)';
-            setTimeout(() => {
-                document.getElementById('uploadModal').classList.add('hidden');
-                resetUploadForm();
-            }, 300);
+
+        function closePostDetail() {
+            document.getElementById('postDetailModal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
         }
         
         function resetUploadForm() {
@@ -465,8 +557,8 @@
                     throw new Error(uploadResult.error);
                 }
                 
-                // Close modal and show loading
-                closeUploadModal();
+                // Switch to feed tab and show loading
+                setActiveTab('home');
                 showLoading('正在分析论文，提取知识点...');
                 
                 // Step 2: Process PDF
@@ -491,15 +583,21 @@
                 
                 // Render new feed
                 renderFeed(feedData);
+                setActiveTab('home');
+                resetUploadForm();
                 
             } catch (error) {
                 console.error('Upload failed:', error);
                 alert('处理失败: ' + error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = '开始生成';
                 hideLoading();
             }
         }
         
         function showLoading(text) {
+            document.getElementById('uploadView').classList.add('hidden');
+            document.getElementById('feedView').classList.remove('hidden');
             document.getElementById('emptyState').classList.add('hidden');
             document.getElementById('feedContent').classList.add('hidden');
             document.getElementById('feedEnd').classList.add('hidden');
@@ -523,10 +621,18 @@
         
         // Navigation (placeholder functions)
         function showFeed() {
+            closePostDetail();
             setActiveTab('home');
-            if (currentFeed) {
-                renderFeed(currentFeed);
-            }
+            document.getElementById('uploadView').classList.add('hidden');
+            document.getElementById('feedView').classList.remove('hidden');
+            if (currentFeed) renderFeed(currentFeed);
+        }
+
+        function showUpload() {
+            closePostDetail();
+            setActiveTab('upload');
+            document.getElementById('feedView').classList.add('hidden');
+            document.getElementById('uploadView').classList.remove('hidden');
         }
         
         function showSearch() {
@@ -550,6 +656,12 @@
                 }
             });
         }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closePostDetail();
+            }
+        });
     </script>
 </body>
 </html>

@@ -7,3 +7,7 @@ werkzeug
 gunicorn
 psycopg2-binary
 sqlalchemy
+langgraph
+langchain-core
+langchain-anthropic
+pydantic
