@@ -234,12 +234,19 @@
     
     <!-- Bottom Navigation -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 py-2 z-30">
-        <div class="max-w-2xl mx-auto flex justify-center gap-12 items-center">
+        <div class="max-w-2xl mx-auto flex justify-around items-center">
             <button onclick="showFeed()" class="nav-btn flex flex-col items-center text-orange-500" data-tab="home">
                 <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
                 </svg>
                 <span class="text-[10px] mt-0.5">首页</span>
+            </button>
+            <button onclick="showUpload()" class="flex flex-col items-center" aria-label="上传">
+                <div class="w-10 h-6 bg-gradient-to-r from-orange-400 to-red-400 rounded-lg flex items-center justify-center shadow-lg">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </div>
             </button>
             <button onclick="showProfile()" class="nav-btn flex flex-col items-center text-gray-400" data-tab="profile">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
